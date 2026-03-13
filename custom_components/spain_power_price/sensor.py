@@ -69,7 +69,7 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
     ) -> None:
         """Initialize sensor entity."""
         super().__init__(coordinator)
-        self.entity_description = description
+        self._sensor_key = description.key
         self._attr_name = description.name
         self._attr_unique_id = f"{constants.DOMAIN}_{description.key}"
         self._attr_icon = description.icon
@@ -79,9 +79,9 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
     def native_value(self) -> str | float | None:
         """Return native sensor value."""
         data = self.coordinator.data
-        if self.entity_description.key == "current_price":
+        if self._sensor_key == "current_price":
             return data.current_price
-        if self.entity_description.key == "future_day":
+        if self._sensor_key == "future_day":
             return data.future_day
         return None
 
@@ -89,7 +89,7 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
     def extra_state_attributes(self) -> dict[str, Any]:
         """Return extra state attributes."""
         data = self.coordinator.data
-        if self.entity_description.key == "current_price":
+        if self._sensor_key == "current_price":
             return {
                 "id": self.unique_id,
                 "integration": constants.DOMAIN,

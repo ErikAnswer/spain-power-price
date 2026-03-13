@@ -10,8 +10,8 @@ from . import constants
 
 
 def get_current_date_string() -> str:
-    """Return current local date using dd-MM-YYYY format required by ESIOS."""
-    return dt_util.now().strftime("%d-%m-%Y")
+    """Return current local date in YYYY-MM-DD format required by ESIOS."""
+    return dt_util.now().strftime("%Y-%m-%d")
 
 
 def get_current_hour() -> int:
@@ -38,6 +38,10 @@ def convert_mwh_string_to_eur(value: Any, decimals: int = 5) -> float:
     else:
         normalized_value = str(value)
 
-    parsed_value = float(normalized_value)
+    try:
+        parsed_value = float(normalized_value)
+    except (TypeError, ValueError):
+        return 0.0
+
     eur_value = parsed_value / 1_000
     return round(eur_value, decimals)

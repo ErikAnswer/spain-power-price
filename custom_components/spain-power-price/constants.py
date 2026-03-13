@@ -1,6 +1,6 @@
 """Constants for the Spain Power Price integration."""
 
-DOMAIN = "precioluz"
+DOMAIN = "spain-power-price"
 PLATFORMS = ["sensor"]
 
 CONF_PERSONAL_TOKEN = "token_personal"

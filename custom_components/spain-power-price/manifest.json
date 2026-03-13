@@ -1,5 +1,5 @@
 {
-  "domain": "precioluz",
+  "domain": "spain-power-price",
   "name": "Spain Power Price",
   "version": "0.4.0",
   "iot_class": "cloud_polling",

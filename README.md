@@ -23,7 +23,8 @@ This integration includes:
 ### Recommended: HACS
 
 1. Add this repository as a custom repository in HACS (category: **Integration**):
-  - `https://github.com/ErikAnswer/spain-power-price`
+
+- `https://github.com/ErikAnswer/spain-power-price`
 
 2. Open the repository directly in your Home Assistant:
 
@@ -33,13 +34,13 @@ This integration includes:
 4. Restart Home Assistant.
 5. Add the integration:
 
-[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=precioluz)
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=spain-power-price)
 
 6. Enter your ESIOS token and finish setup.
 
 ### Manual
 
-1. Copy `custom_components/precioluz` into your Home Assistant `custom_components` directory.
+1. Copy `custom_components/spain-power-price` into your Home Assistant `custom_components` directory.
 2. Restart Home Assistant.
 3. Go to **Settings → Devices & Services → Add Integration**.
 4. Search for **Spain Power Price** and enter your ESIOS token.

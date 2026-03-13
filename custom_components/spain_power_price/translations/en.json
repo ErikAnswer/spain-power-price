@@ -57,6 +57,9 @@
       "pvpc_most_expensive_hours_top3": {
         "name": "PVPC top 3 most expensive hours"
       },
+      "pvpc_compatible_optimizer": {
+        "name": "PVPC Compatible Optimizer"
+      },
       "spot_price_daily": {
         "name": "SPOT market price"
       },

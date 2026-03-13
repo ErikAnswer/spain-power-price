@@ -202,7 +202,7 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
                     row = day_prices[hour_index]
                     if isinstance(row, dict):
                         try:
-                            price_value = float(row.get("pcb", 0))
+                            price_value = round(float(row.get("pcb", 0)), 5)
                         except (TypeError, ValueError):
                             price_value = 0.0
                 hourly_prices[f"price_{hour_index:02d}h"] = price_value
@@ -212,7 +212,7 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
                 "integration": constants.DOMAIN,
                 "relativePrice": data.current_relative_price,
                 "dayPrices": data.today_prices,
-                "DayPrices": data.today_prices,
+                "DayPrices": hourly_prices,
                 **hourly_prices,
             }
 

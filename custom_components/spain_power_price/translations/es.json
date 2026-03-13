@@ -16,5 +16,62 @@
     "abort": {
       "already_configured": "La integración ya está configurada"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Spain Power Price",
+        "description": "Configura el intervalo de actualización de la integración.",
+        "data": {
+          "update_interval_minutes": "Intervalo de actualización (minutos)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {
+        "name": "Precio PVPC actual"
+      },
+      "future_day": {
+        "name": "Fecha PVPC siguiente día"
+      },
+      "pvpc_average_price": {
+        "name": "Precio medio PVPC"
+      },
+      "pvpc_min_price": {
+        "name": "Precio mínimo PVPC"
+      },
+      "pvpc_max_price": {
+        "name": "Precio máximo PVPC"
+      },
+      "pvpc_cheapest_hour": {
+        "name": "Hora más barata PVPC"
+      },
+      "pvpc_most_expensive_hour": {
+        "name": "Hora más cara PVPC"
+      },
+      "pvpc_cheapest_hours_top3": {
+        "name": "Top 3 horas más baratas PVPC"
+      },
+      "spot_price_daily": {
+        "name": "Precio mercado SPOT"
+      },
+      "demand_forecast": {
+        "name": "Previsión de demanda"
+      },
+      "demand_programmed": {
+        "name": "Demanda programada"
+      },
+      "wind_forecast": {
+        "name": "Previsión eólica"
+      },
+      "solar_forecast": {
+        "name": "Previsión solar"
+      },
+      "wind_real": {
+        "name": "Generación eólica real"
+      }
+    }
   }
 }

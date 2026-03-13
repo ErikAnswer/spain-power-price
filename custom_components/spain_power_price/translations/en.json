@@ -16,5 +16,62 @@
     "abort": {
       "already_configured": "Integration is already configured"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Spain Power Price options",
+        "description": "Configure integration refresh interval.",
+        "data": {
+          "update_interval_minutes": "Update interval (minutes)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "current_price": {
+        "name": "PVPC current price"
+      },
+      "future_day": {
+        "name": "PVPC next day"
+      },
+      "pvpc_average_price": {
+        "name": "PVPC average price"
+      },
+      "pvpc_min_price": {
+        "name": "PVPC minimum price"
+      },
+      "pvpc_max_price": {
+        "name": "PVPC maximum price"
+      },
+      "pvpc_cheapest_hour": {
+        "name": "PVPC cheapest hour"
+      },
+      "pvpc_most_expensive_hour": {
+        "name": "PVPC most expensive hour"
+      },
+      "pvpc_cheapest_hours_top3": {
+        "name": "PVPC top 3 cheapest hours"
+      },
+      "spot_price_daily": {
+        "name": "SPOT market price"
+      },
+      "demand_forecast": {
+        "name": "Demand forecast"
+      },
+      "demand_programmed": {
+        "name": "Programmed demand"
+      },
+      "wind_forecast": {
+        "name": "Wind forecast"
+      },
+      "solar_forecast": {
+        "name": "Solar forecast"
+      },
+      "wind_real": {
+        "name": "Wind real generation"
+      }
+    }
   }
 }

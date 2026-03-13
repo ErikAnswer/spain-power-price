@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass
+from datetime import datetime
 from datetime import timedelta
 from typing import Any
 
@@ -13,6 +14,7 @@ from aiohttp import ClientError
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from . import constants, utils
 
@@ -29,6 +31,19 @@ class SpainPowerPriceData:
     current_relative_price: int | None
     future_day: str | None
     future_relative_price: int | None
+    pvpc_average_price: float | None
+    pvpc_min_price: float | None
+    pvpc_max_price: float | None
+    pvpc_cheapest_hour: str | None
+    pvpc_most_expensive_hour: str | None
+    pvpc_cheapest_hours_top3: str | None
+    spot_price_daily: float | None
+    demand_forecast: float | None
+    demand_programmed: float | None
+    wind_forecast: float | None
+    solar_forecast: float | None
+    wind_real: float | None
+    indicators_metadata: dict[str, dict[str, Any]]
 
 
 class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
@@ -80,7 +95,143 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             current_relative_price=None,
             future_day=None,
             future_relative_price=None,
+            pvpc_average_price=None,
+            pvpc_min_price=None,
+            pvpc_max_price=None,
+            pvpc_cheapest_hour=None,
+            pvpc_most_expensive_hour=None,
+            pvpc_cheapest_hours_top3=None,
+            spot_price_daily=None,
+            demand_forecast=None,
+            demand_programmed=None,
+            wind_forecast=None,
+            solar_forecast=None,
+            wind_real=None,
+            indicators_metadata={},
         )
+
+    @staticmethod
+    def _parse_local_datetime(datetime_value: Any) -> datetime | None:
+        """Parse datetime string from ESIOS payload and convert to local tz."""
+        if not isinstance(datetime_value, str):
+            return None
+
+        parsed = dt_util.parse_datetime(datetime_value)
+        if parsed is None:
+            return None
+
+        local_tz = dt_util.now().tzinfo
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=local_tz)
+
+        return parsed.astimezone(local_tz)
+
+    @staticmethod
+    def _preferred_geo_rank(geo_name: str) -> int:
+        """Return preference rank for geo names (lower is better)."""
+        normalized_geo_name = geo_name.lower()
+        if "pení" in normalized_geo_name or "peni" in normalized_geo_name:
+            return 0
+        if "espa" in normalized_geo_name or "spain" in normalized_geo_name:
+            return 1
+        return 2
+
+    def _extract_current_indicator_value(
+        self, payload: dict[str, Any], indicator_id: int
+    ) -> tuple[float | None, dict[str, Any]]:
+        """Extract current-hour value from an indicator payload."""
+        indicator = payload.get("indicator", {})
+        values = indicator.get("values", [])
+        if not isinstance(values, list):
+            return None, {"indicator_id": indicator_id}
+
+        now = dt_util.now()
+        current_hour_values: list[tuple[int, datetime, dict[str, Any]]] = []
+        latest_today: tuple[datetime, dict[str, Any]] | None = None
+
+        for item in values:
+            if not isinstance(item, dict):
+                continue
+
+            local_datetime = self._parse_local_datetime(item.get("datetime"))
+            if local_datetime is None:
+                continue
+
+            if local_datetime.date() != now.date():
+                continue
+
+            if latest_today is None or local_datetime > latest_today[0]:
+                latest_today = (local_datetime, item)
+
+            if local_datetime.hour != now.hour:
+                continue
+
+            geo_name = str(item.get("geo_name", ""))
+            current_hour_values.append(
+                (self._preferred_geo_rank(geo_name), local_datetime, item)
+            )
+
+        selected_item: dict[str, Any] | None = None
+        selected_datetime: datetime | None = None
+        if current_hour_values:
+            current_hour_values.sort(key=lambda value: (value[0], value[1]))
+            _, selected_datetime, selected_item = current_hour_values[0]
+        elif latest_today is not None:
+            selected_datetime, selected_item = latest_today
+
+        if selected_item is None:
+            return None, {"indicator_id": indicator_id}
+
+        raw_value = selected_item.get("value")
+        try:
+            value = float(raw_value)
+        except (TypeError, ValueError):
+            value = None
+
+        metadata = {
+            "indicator_id": indicator_id,
+            "indicator_name": indicator.get("name"),
+            "geo_name": selected_item.get("geo_name"),
+            "geo_id": selected_item.get("geo_id"),
+            "datetime": selected_datetime.isoformat() if selected_datetime else None,
+        }
+        return value, metadata
+
+    def _compute_pvpc_stats(self, today_prices: list[dict[str, Any]]) -> dict[str, float | str | None]:
+        """Compute derived daily PVPC statistics."""
+        if not today_prices:
+            return {
+                "average": None,
+                "minimum": None,
+                "maximum": None,
+                "cheapest_hour": None,
+                "most_expensive_hour": None,
+                "top3_cheapest_hours": None,
+            }
+
+        prices = [item["pcb"] for item in today_prices if isinstance(item.get("pcb"), (int, float))]
+        if not prices:
+            return {
+                "average": None,
+                "minimum": None,
+                "maximum": None,
+                "cheapest_hour": None,
+                "most_expensive_hour": None,
+                "top3_cheapest_hours": None,
+            }
+
+        cheapest = min(today_prices, key=lambda item: item.get("pcb", float("inf")))
+        most_expensive = max(today_prices, key=lambda item: item.get("pcb", float("-inf")))
+        top3 = sorted(today_prices, key=lambda item: item.get("pcb", float("inf")))[:3]
+
+        return {
+            "average": round(sum(prices) / len(prices), 5),
+            "minimum": round(min(prices), 5),
+            "maximum": round(max(prices), 5),
+            "cheapest_hour": str(cheapest.get("hour")),
+            "most_expensive_hour": str(most_expensive.get("hour")),
+            "top3_cheapest_hours": ", ".join(str(item.get("hour")) for item in top3),
+        }
 
     def _process_pvpc(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         """Normalize ESIOS payload and compute relative price buckets."""
@@ -154,11 +305,40 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
         today_endpoint = constants.ENDPOINT_TODAY_PRICE.format(utils.get_current_date_string())
         future_endpoint = constants.ENDPOINT_FUTURE_PRICE
 
-        today_result, future_result = await asyncio.gather(
+        start_date = dt_util.now().date() - timedelta(days=1)
+        end_date = dt_util.now().date() + timedelta(days=1)
+
+        indicator_definitions = {
+            "spot_price_daily": constants.INDICATOR_SPOT_PRICE_DAILY,
+            "demand_forecast": constants.INDICATOR_DEMAND_FORECAST,
+            "demand_programmed": constants.INDICATOR_DEMAND_PROGRAMMED,
+            "wind_forecast": constants.INDICATOR_WIND_FORECAST,
+            "solar_forecast": constants.INDICATOR_SOLAR_FORECAST,
+            "wind_real": constants.INDICATOR_WIND_REAL,
+        }
+
+        indicator_endpoints = {
+            key: constants.ENDPOINT_INDICATOR_RANGE.format(
+                indicator_id=indicator_id,
+                start_date=start_date.isoformat(),
+                end_date=end_date.isoformat(),
+            )
+            for key, indicator_id in indicator_definitions.items()
+        }
+
+        fetch_tasks = [
             self._async_fetch_json(today_endpoint),
             self._async_fetch_json(future_endpoint),
-            return_exceptions=True,
+        ]
+        fetch_tasks.extend(
+            self._async_fetch_json(endpoint) for endpoint in indicator_endpoints.values()
         )
+
+        results = await asyncio.gather(*fetch_tasks, return_exceptions=True)
+
+        today_result = results[0]
+        future_result = results[1]
+        indicator_results = results[2:]
 
         today_payload: dict[str, Any] = {}
         future_payload: dict[str, Any] = {}
@@ -190,6 +370,33 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             min(utils.get_current_hour(), len(future_prices) - 1) if future_prices else None
         )
 
+        pvpc_stats = self._compute_pvpc_stats(today_prices)
+
+        indicator_values: dict[str, float | None] = {key: None for key in indicator_definitions}
+        indicators_metadata: dict[str, dict[str, Any]] = {}
+
+        for (sensor_key, indicator_id), indicator_result in zip(
+            indicator_definitions.items(), indicator_results
+        ):
+            if isinstance(indicator_result, Exception):
+                _LOGGER.warning(
+                    "Could not refresh indicator %s (%s): %s",
+                    sensor_key,
+                    indicator_id,
+                    indicator_result,
+                )
+                indicators_metadata[sensor_key] = {"indicator_id": indicator_id}
+                continue
+
+            value, metadata = self._extract_current_indicator_value(indicator_result, indicator_id)
+            indicator_values[sensor_key] = value
+            indicators_metadata[sensor_key] = metadata
+
+        spot_raw_value = indicator_values["spot_price_daily"]
+        spot_eur_value = (
+            utils.convert_mwh_string_to_eur(spot_raw_value) if spot_raw_value is not None else None
+        )
+
         return SpainPowerPriceData(
             today_prices=today_prices,
             future_prices=future_prices,
@@ -203,4 +410,17 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             future_relative_price=(
                 future_prices[future_index]["pcbRelative"] if future_index is not None else None
             ),
+            pvpc_average_price=pvpc_stats["average"],
+            pvpc_min_price=pvpc_stats["minimum"],
+            pvpc_max_price=pvpc_stats["maximum"],
+            pvpc_cheapest_hour=pvpc_stats["cheapest_hour"],
+            pvpc_most_expensive_hour=pvpc_stats["most_expensive_hour"],
+            pvpc_cheapest_hours_top3=pvpc_stats["top3_cheapest_hours"],
+            spot_price_daily=spot_eur_value,
+            demand_forecast=indicator_values["demand_forecast"],
+            demand_programmed=indicator_values["demand_programmed"],
+            wind_forecast=indicator_values["wind_forecast"],
+            solar_forecast=indicator_values["solar_forecast"],
+            wind_real=indicator_values["wind_real"],
+            indicators_metadata=indicators_metadata,
         )

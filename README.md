@@ -16,7 +16,7 @@ Current version: **0.9.4**
 
 - Home Assistant installation.
 - HACS (recommended) or manual custom component install.
-- Personal ESIOS token (request at [consultasios@ree.es](mailto:consultasios@ree.es)).
+- Personal ESIOS token (mandatory to fetch data, request at [consultasios@ree.es](mailto:consultasios@ree.es)).
 
 ## Installation
 
@@ -79,6 +79,7 @@ The integration uses these ESIOS endpoints:
 - PVPC cheapest hour
 - PVPC most expensive hour
 - PVPC top 3 cheapest hours
+- PVPC top 3 most expensive hours
 
 ### Indicator sensors
 

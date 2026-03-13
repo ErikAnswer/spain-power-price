@@ -37,6 +37,7 @@ class SpainPowerPriceData:
     pvpc_cheapest_hour: str | None
     pvpc_most_expensive_hour: str | None
     pvpc_cheapest_hours_top3: str | None
+    pvpc_most_expensive_hours_top3: str | None
     spot_price_daily: float | None
     demand_forecast: float | None
     demand_programmed: float | None
@@ -101,6 +102,7 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             pvpc_cheapest_hour=None,
             pvpc_most_expensive_hour=None,
             pvpc_cheapest_hours_top3=None,
+            pvpc_most_expensive_hours_top3=None,
             spot_price_daily=None,
             demand_forecast=None,
             demand_programmed=None,
@@ -207,6 +209,7 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
                 "cheapest_hour": None,
                 "most_expensive_hour": None,
                 "top3_cheapest_hours": None,
+                "top3_most_expensive_hours": None,
             }
 
         prices = [item["pcb"] for item in today_prices if isinstance(item.get("pcb"), (int, float))]
@@ -218,11 +221,17 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
                 "cheapest_hour": None,
                 "most_expensive_hour": None,
                 "top3_cheapest_hours": None,
+                "top3_most_expensive_hours": None,
             }
 
         cheapest = min(today_prices, key=lambda item: item.get("pcb", float("inf")))
         most_expensive = max(today_prices, key=lambda item: item.get("pcb", float("-inf")))
-        top3 = sorted(today_prices, key=lambda item: item.get("pcb", float("inf")))[:3]
+        top3_cheapest = sorted(today_prices, key=lambda item: item.get("pcb", float("inf")))[:3]
+        top3_most_expensive = sorted(
+            today_prices,
+            key=lambda item: item.get("pcb", float("-inf")),
+            reverse=True,
+        )[:3]
 
         return {
             "average": round(sum(prices) / len(prices), 5),
@@ -230,7 +239,10 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             "maximum": round(max(prices), 5),
             "cheapest_hour": str(cheapest.get("hour")),
             "most_expensive_hour": str(most_expensive.get("hour")),
-            "top3_cheapest_hours": ", ".join(str(item.get("hour")) for item in top3),
+            "top3_cheapest_hours": ", ".join(str(item.get("hour")) for item in top3_cheapest),
+            "top3_most_expensive_hours": ", ".join(
+                str(item.get("hour")) for item in top3_most_expensive
+            ),
         }
 
     def _process_pvpc(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -416,6 +428,7 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             pvpc_cheapest_hour=pvpc_stats["cheapest_hour"],
             pvpc_most_expensive_hour=pvpc_stats["most_expensive_hour"],
             pvpc_cheapest_hours_top3=pvpc_stats["top3_cheapest_hours"],
+            pvpc_most_expensive_hours_top3=pvpc_stats["top3_most_expensive_hours"],
             spot_price_daily=spot_eur_value,
             demand_forecast=indicator_values["demand_forecast"],
             demand_programmed=indicator_values["demand_programmed"],

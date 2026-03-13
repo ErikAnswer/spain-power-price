@@ -54,6 +54,9 @@
       "pvpc_cheapest_hours_top3": {
         "name": "PVPC top 3 cheapest hours"
       },
+      "pvpc_most_expensive_hours_top3": {
+        "name": "PVPC top 3 most expensive hours"
+      },
       "spot_price_daily": {
         "name": "SPOT market price"
       },

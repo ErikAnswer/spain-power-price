@@ -1,7 +1,7 @@
 {
   "domain": "spain_power_price",
   "name": "Spain Power Price",
-  "version": "0.9.6",
+  "version": "1.0.0",
   "iot_class": "cloud_polling",
   "config_flow": true,
   "documentation": "https://github.com/ErikAnswer/spain-power-price",

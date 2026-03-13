@@ -71,6 +71,11 @@ SENSOR_DESCRIPTIONS = (
         icon="mdi:format-list-numbered",
     ),
     SpainPowerPriceSensorDescription(
+        key="pvpc_most_expensive_hours_top3",
+        translation_key="pvpc_most_expensive_hours_top3",
+        icon="mdi:format-list-numbered",
+    ),
+    SpainPowerPriceSensorDescription(
         key="spot_price_daily",
         translation_key="spot_price_daily",
         icon="mdi:finance",
@@ -171,6 +176,7 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
             "pvpc_cheapest_hour": "pvpc_cheapest_hour",
             "pvpc_most_expensive_hour": "pvpc_most_expensive_hour",
             "pvpc_cheapest_hours_top3": "pvpc_cheapest_hours_top3",
+            "pvpc_most_expensive_hours_top3": "pvpc_most_expensive_hours_top3",
             "spot_price_daily": "spot_price_daily",
             "demand_forecast": "demand_forecast",
             "demand_programmed": "demand_programmed",

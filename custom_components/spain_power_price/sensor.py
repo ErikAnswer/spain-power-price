@@ -115,12 +115,15 @@ async def async_setup_entry(
     """Set up sensors from a config entry."""
     personal_token = entry.data[constants.CONF_PERSONAL_TOKEN]
 
-    update_interval_minutes = int(
-        entry.options.get(
-            constants.CONF_UPDATE_INTERVAL_MINUTES,
-            constants.DEFAULT_UPDATE_INTERVAL_MINUTES,
-        )
+    raw_interval = entry.options.get(
+        constants.CONF_UPDATE_INTERVAL_MINUTES,
+        constants.DEFAULT_UPDATE_INTERVAL_MINUTES,
     )
+    try:
+        update_interval_minutes = int(raw_interval)
+    except (TypeError, ValueError):
+        update_interval_minutes = constants.DEFAULT_UPDATE_INTERVAL_MINUTES
+
     update_interval_minutes = max(
         constants.MIN_UPDATE_INTERVAL_MINUTES,
         min(constants.MAX_UPDATE_INTERVAL_MINUTES, update_interval_minutes),

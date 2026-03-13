@@ -35,6 +35,16 @@ async def _async_validate_token(hass, personal_token: str) -> bool:
         return False
 
 
+def _normalize_update_interval(raw_value: Any) -> int:
+    """Normalize update interval from options to a safe integer range."""
+    try:
+        interval = int(raw_value)
+    except (TypeError, ValueError):
+        interval = DEFAULT_UPDATE_INTERVAL_MINUTES
+
+    return max(MIN_UPDATE_INTERVAL_MINUTES, min(MAX_UPDATE_INTERVAL_MINUTES, interval))
+
+
 class SpainPowerPriceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle config flow for Spain Power Price."""
 
@@ -84,9 +94,15 @@ class SpainPowerPriceOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Manage the options step."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            normalized_interval = _normalize_update_interval(
+                user_input.get(CONF_UPDATE_INTERVAL_MINUTES)
+            )
+            return self.async_create_entry(
+                title="",
+                data={CONF_UPDATE_INTERVAL_MINUTES: normalized_interval},
+            )
 
-        current_interval = int(
+        current_interval = _normalize_update_interval(
             self.config_entry.options.get(
                 CONF_UPDATE_INTERVAL_MINUTES,
                 DEFAULT_UPDATE_INTERVAL_MINUTES,

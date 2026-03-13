@@ -1,71 +1,68 @@
-# precioluz
-Integración en [Home Assistant](https://www.home-assistant.io/) del precio de la luz consultado en [ESIOS](https://www.esios.ree.es/).
+# Spain Power Price
+
+Integration for [Home Assistant](https://www.home-assistant.io/) that provides Spain electricity hourly pricing from [ESIOS](https://www.esios.ree.es/).
 <br><br>
 
-## Características
-Esta integración incluye los siguientes sensores:
-- Precio actual de la luz.
-- Fecha en que se obtuvo el precio de la luz.
-<br>
+## Features
 
-## Requisitos
-Los requisitos de esta integración son:
-- Una instalación de [Home Assistant](https://www.home-assistant.io/).
-- Tener [HACS](https://hacs.xyz/) instalado en Home Assistant.
-- Haber solicitado y disponer de un token personal para consultar la [API de ESIOS](https://api.esios.ree.es/). Este token personal se solicita al correo [consultasios@ree.es](mailto:consultasios@ree.es).
-<br>
+This integration includes:
 
-## Instalación
-Seguir los siguientes pasos para la instalación de esta integración:
-1. Copiar directorio `custom_components/precioluz` en el directorio `custom_components` de Home Assistant
+- Current electricity price.
+- Price date sensor.
+  <br>
 
-2. Configurar la integración. 
-   ```yaml
-   sensor:
-     - platform: precioluz
-       scan_interval: 1800
-       tokenPersonal: !secret precioluz_token_personal
-   ```
-   Donde:
-   - `scan_interval` es un parámetro opcional que indica la frecuencia, en segundos, con la que se deben actualizar los sensores de esta integración.
-   - `tokenPersonal` es un parámetro obligatorio que contiene el token personal recibido de ESIOS (consultar la sección [Requisitos](README.md#requisitos)
-   
-   <br>Esta configuación se debe añadir a uno de los siguientes archivos:
-   - Al archivo de configuración `configuration.yaml`.
-   - A un nuevo archivo de configuración:
-     * Añadir este nuevo archivo de configuración YAML en el directorio `config` de Home Assistant
-     * Añadir la siguiente línea en el archivo de configuración `configuration.yaml`, indicando el nombre del archivo de configuración a importar
-       ```
-       sensor precioluz: !include precioluz.yaml
-       ```
+## Requirements
 
-3. Añadir la siguiente clave en el archivo `secrets.yaml`:
-   ```
-   precioluz_token_personal: "MI TOKEN PERSONAL DE ESIOS"
-   ```
+- A working [Home Assistant](https://www.home-assistant.io/) installation.
+- [HACS](https://hacs.xyz/) installed in Home Assistant.
+- A personal ESIOS API token (request via [consultasios@ree.es](mailto:consultasios@ree.es)).
+  <br>
 
-4. Reiniciar Home Assistant para que recarge la configuración.
-<br>
+## Installation
 
-## Sensores
+### Recommended: HACS
 
-Se incluyen los siguientes sensores:
-- *Precio de la Luz - PVPC - Actual*: precio actual de la luz.
-- *Precio de la Luz - PVPC - Fecha*: fecha en que se obtuvo el precio de la luz.
-  <br><br>**NOTA**: ESIOS publica los precios de la luz del día siguiente a partir de las 20:30.
+1. Add this repository as a custom repository in HACS (category: **Integration**):
+  - `https://github.com/ErikAnswer/spain-power-price`
 
-<br>Los sensores incluyen los siguientes atributos:
-- *ID*: identificador del sensor.
-- *Integration*: nombre de la integración.
-- *PrecioRelativo*: indicador del precio relativo de la luz actual en PCB:
-  * 0: bajo o valle
-  * 1: medio o llano
-  * 2: alto o punta
-- *PreciosDelDia*: listado con los precios del día:
-  * *id*: identificador del precio en el día
-  * *dia*: día del precio.
-  * *hora*: hora del precio.
-  * *pcb*: precio en la Península, Canarias y Baleares
-  * *pcbRelativo*: indicador del precio relativo en PCB: 0, 1 o 2
-  * *cym*: precio en Ceuta y Melilla
-  * *cymRelativo*: indicador del precio relativo en CYM: 0, 1 o 2
+2. Open the repository directly in your Home Assistant:
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ErikAnswer&repository=spain-power-price&category=integration)
+
+3. Click **Download** in HACS.
+4. Restart Home Assistant.
+5. Add the integration:
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=precioluz)
+
+6. Enter your ESIOS token and finish setup.
+
+### Manual
+
+1. Copy `custom_components/precioluz` into your Home Assistant `custom_components` directory.
+2. Restart Home Assistant.
+3. Go to **Settings → Devices & Services → Add Integration**.
+4. Search for **Spain Power Price** and enter your ESIOS token.
+
+## Configuration
+
+- Configuration is UI-only (config entry).
+
+## ESIOS API
+
+- Uses `x-api-key` authentication header with JSON accept/content-type.
+- Uses PVPC archive endpoint: `archives/70/download_json`.
+
+## Sensors
+
+- **Spain Power Price - PVPC - Current**
+- **Spain Power Price - PVPC - Date**
+
+**Note:** ESIOS usually publishes next-day prices from around 20:30.
+
+Extra attributes include:
+
+- `id`
+- `integration`
+- `relativePrice` (`0` low, `1` medium, `2` high)
+- `dayPrices` list with `id`, `day`, `hour`, `pcb`, `pcbRelative`, `cym`, `cymRelative`

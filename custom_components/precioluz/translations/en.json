@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Spain Power Price",
+        "description": "Enter your ESIOS personal token.",
+        "data": {
+          "token_personal": "Personal token"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to ESIOS",
+      "invalid_token": "Invalid token"
+    },
+    "abort": {
+      "already_configured": "Integration is already configured"
+    }
+  }
+}

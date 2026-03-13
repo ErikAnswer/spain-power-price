@@ -1,86 +1,104 @@
-"""Sensor de Precio de la Luz"""
+"""Spain Power Price sensors (modern architecture)."""
 
-import logging
-import voluptuous
+from __future__ import annotations
 
-from homeassistant.components.switch import PLATFORM_SCHEMA
-from homeassistant.const import __version__
+from dataclasses import dataclass
+from typing import Any
+
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CURRENCY_EURO
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.typing import ConfigType
-from homeassistant.helpers.typing import DiscoveryInfoType
-from homeassistant.helpers import config_validation
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-# Clases de Precio de la Luz
-from . import constantes
-from . import enumerados
-from . import sensor_precioluz
+from . import constants
+from .coordinator import SpainPowerPriceCoordinator
 
-# Obtener el objeto para crear logs
-_LOGGER = logging.getLogger(__name__)
 
-# Extender el esquema de configuration.yaml para definir las claves usadas del archivo de configuración
-PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
-    {
-        voluptuous.Required(
-            constantes.CONFIG_KEY_TOKEN_PERSONAL
-        ): config_validation.string,
-    }
+@dataclass(frozen=True)
+class SpainPowerPriceSensorDescription:
+    """Spain Power Price sensor description."""
+
+    key: str
+    name: str
+    icon: str
+    unit_of_measurement: str | None = None
+
+
+SENSOR_DESCRIPTIONS = (
+    SpainPowerPriceSensorDescription(
+        key="current_price",
+        name="Spain Power Price - PVPC - Current",
+        icon="mdi:currency-eur",
+        unit_of_measurement=CURRENCY_EURO,
+    ),
+    SpainPowerPriceSensorDescription(
+        key="future_day",
+        name="Spain Power Price - PVPC - Date",
+        icon="mdi:calendar",
+    ),
 )
 
-# Definición de la cabecera de llamada a HA
-HEADERS = {
-    "accept": "application/ld+json",
-    "user-agent": f"HomeAssistant/{__version__}",
-}
 
-
-async def async_setup_platform(
-    hass: HomeAssistant,
-    config: ConfigType,
-    add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
+async def async_setup_entry(
+    hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Configuración de la plataforma"""
+    """Set up sensors from a config entry."""
+    personal_token = entry.data[constants.CONF_PERSONAL_TOKEN]
 
-    _LOGGER.info("Iniciando la configuración de la plataforma de Precio de la Luz")
+    coordinator = SpainPowerPriceCoordinator(hass, personal_token)
+    await coordinator.async_config_entry_first_refresh()
 
-    token_personal = config[constantes.CONFIG_KEY_TOKEN_PERSONAL]
-
-    # Comprobar que el token personal tiene una longitud de 64 caracteres
-    if len(token_personal) != 64:
-        _LOGGER.critical(
-            "El archivo de configuración YAML debe tener una clave '%s' con un valor hexadecimal de 64 caracteres",
-            constantes.CONFIG_KEY_TOKEN_PERSONAL,
-        )
-        return False
-
-    # Comprobar que el token personal es hexadecimal
-    try:
-        int(token_personal, 16)
-    except ValueError:
-        _LOGGER.critical(
-            "El archivo de configuración YAML debe tener una clave '%s' con un valor hexadecimal de 64 caracteres",
-            constantes.CONFIG_KEY_TOKEN_PERSONAL,
-        )
-        return False
-
-    # Crear sesión para hacer llamada asíncrona
-    sesion_asincrona = async_create_clientsession(hass)
-
-    # Añadir los sensores como nuevas entidades
-    add_entities(
-        [
-            sensor_precioluz.SensorPrecioLuz(
-                enumerados.TipoSensor.PRECIO_ACTUAL,
-                sesion_asincrona,
-            ),
-            sensor_precioluz.SensorPrecioLuz(
-                enumerados.TipoSensor.PRECIO_FUTURO,
-                sesion_asincrona,
-            ),
-        ],
-        True,
+    async_add_entities(
+        [SpainPowerPriceSensor(coordinator, description) for description in SENSOR_DESCRIPTIONS]
     )
-    _LOGGER.info("Añadidos los sensores del Precio de la Luz")
+
+
+class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], SensorEntity):
+    """Sensor entity for Spain Power Price data."""
+
+    _attr_has_entity_name = False
+    _attr_should_poll = False
+
+    def __init__(
+        self,
+        coordinator: SpainPowerPriceCoordinator,
+        description: SpainPowerPriceSensorDescription,
+    ) -> None:
+        """Initialize sensor entity."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_name = description.name
+        self._attr_unique_id = f"{constants.DOMAIN}_{description.key}"
+        self._attr_icon = description.icon
+        self._attr_native_unit_of_measurement = description.unit_of_measurement
+
+    @property
+    def native_value(self) -> str | float | None:
+        """Return native sensor value."""
+        data = self.coordinator.data
+        if self.entity_description.key == "current_price":
+            return data.current_price
+        if self.entity_description.key == "future_day":
+            return data.future_day
+        return None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        data = self.coordinator.data
+        if self.entity_description.key == "current_price":
+            return {
+                "id": self.unique_id,
+                "integration": constants.DOMAIN,
+                "relativePrice": data.current_relative_price,
+                "dayPrices": data.today_prices,
+            }
+
+        return {
+            "id": self.unique_id,
+            "integration": constants.DOMAIN,
+            "relativePrice": data.future_relative_price,
+            "dayPrices": data.future_prices,
+        }

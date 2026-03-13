@@ -1,6 +1,10 @@
 {
   "domain": "precioluz",
-  "name": "Precio de la Luz",
-  "version": "0.0.1",
-  "iot_class": "cloud_polling"
+  "name": "Spain Power Price",
+  "version": "0.4.0",
+  "iot_class": "cloud_polling",
+  "config_flow": true,
+  "documentation": "https://github.com/ErikAnswer/spain-power-price",
+  "issue_tracker": "https://github.com/ErikAnswer/spain-power-price/issues",
+  "codeowners": ["@ErikAnswer"]
 }

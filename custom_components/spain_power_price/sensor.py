@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 from datetime import timedelta
 from typing import Any
 
@@ -13,7 +12,6 @@ from homeassistant.const import CURRENCY_EURO, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import dt as dt_util
 
 from . import constants
 from .coordinator import SpainPowerPriceCoordinator
@@ -32,7 +30,7 @@ SENSOR_DESCRIPTIONS = (
         key="current_price",
         translation_key="current_price",
         icon="mdi:currency-eur",
-        native_unit_of_measurement=CURRENCY_EURO,
+        native_unit_of_measurement="€/kWh",
     ),
     SpainPowerPriceSensorDescription(
         key="future_day",
@@ -76,12 +74,6 @@ SENSOR_DESCRIPTIONS = (
         key="pvpc_most_expensive_hours_top3",
         translation_key="pvpc_most_expensive_hours_top3",
         icon="mdi:format-list-numbered",
-    ),
-    SpainPowerPriceSensorDescription(
-        key="pvpc_compatible_optimizer",
-        translation_key="pvpc_compatible_optimizer",
-        icon="mdi:chart-timeline-variant",
-        native_unit_of_measurement=CURRENCY_EURO,
     ),
     SpainPowerPriceSensorDescription(
         key="spot_price_daily",
@@ -170,74 +162,6 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
         self.entity_description = description
         self._attr_unique_id = f"{constants.DOMAIN}_{description.key}"
 
-    @staticmethod
-    def _build_optimizer_prices(today_prices: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        """Build prices attribute expected by PVPC Optimizer blueprint."""
-        prices: list[dict[str, Any]] = []
-        local_tz = dt_util.now().tzinfo
-
-        for row in today_prices:
-            if not isinstance(row, dict):
-                continue
-
-            raw_price = row.get("pcb")
-            if raw_price is None:
-                continue
-
-            try:
-                parsed_price = float(raw_price)
-            except (TypeError, ValueError):
-                continue
-
-            day_value = str(row.get("day", ""))
-            day_parts = day_value.split("-")
-
-            hour_value = str(row.get("hour", ""))
-            hour_text = hour_value.split("-")[0]
-
-            try:
-                parsed_hour = int(hour_text)
-            except (TypeError, ValueError):
-                continue
-
-            if len(day_parts) == 3:
-                try:
-                    parsed_day = int(day_parts[0])
-                    parsed_month = int(day_parts[1])
-                    parsed_year = int(day_parts[2])
-                    parsed_datetime = datetime(
-                        parsed_year,
-                        parsed_month,
-                        parsed_day,
-                        parsed_hour,
-                        0,
-                        0,
-                        tzinfo=local_tz,
-                    )
-                except (TypeError, ValueError):
-                    parsed_datetime = dt_util.now().replace(
-                        hour=parsed_hour,
-                        minute=0,
-                        second=0,
-                        microsecond=0,
-                    )
-            else:
-                parsed_datetime = dt_util.now().replace(
-                    hour=parsed_hour,
-                    minute=0,
-                    second=0,
-                    microsecond=0,
-                )
-
-            prices.append(
-                {
-                    "datetime": parsed_datetime.isoformat(),
-                    "price": parsed_price,
-                }
-            )
-
-        return prices
-
     @property
     def native_value(self) -> str | float | None:
         """Return native sensor value."""
@@ -253,7 +177,6 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
             "pvpc_most_expensive_hour": "pvpc_most_expensive_hour",
             "pvpc_cheapest_hours_top3": "pvpc_cheapest_hours_top3",
             "pvpc_most_expensive_hours_top3": "pvpc_most_expensive_hours_top3",
-            "pvpc_compatible_optimizer": "current_price",
             "spot_price_daily": "spot_price_daily",
             "demand_forecast": "demand_forecast",
             "demand_programmed": "demand_programmed",
@@ -271,11 +194,26 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
         """Return extra state attributes."""
         data = self.coordinator.data
         if self.entity_description.key == "current_price":
+            day_prices = data.today_prices if isinstance(data.today_prices, list) else []
+            hourly_prices: dict[str, float] = {}
+            for hour_index in range(24):
+                price_value = 0.0
+                if hour_index < len(day_prices):
+                    row = day_prices[hour_index]
+                    if isinstance(row, dict):
+                        try:
+                            price_value = float(row.get("pcb", 0))
+                        except (TypeError, ValueError):
+                            price_value = 0.0
+                hourly_prices[f"price_{hour_index:02d}h"] = price_value
+
             return {
                 "id": self.unique_id,
                 "integration": constants.DOMAIN,
                 "relativePrice": data.current_relative_price,
                 "dayPrices": data.today_prices,
+                "DayPrices": data.today_prices,
+                **hourly_prices,
             }
 
         if self.entity_description.key == "future_day":
@@ -284,14 +222,6 @@ class SpainPowerPriceSensor(CoordinatorEntity[SpainPowerPriceCoordinator], Senso
                 "integration": constants.DOMAIN,
                 "relativePrice": data.future_relative_price,
                 "dayPrices": data.future_prices,
-            }
-
-        if self.entity_description.key == "pvpc_compatible_optimizer":
-            return {
-                "id": self.unique_id,
-                "integration": constants.DOMAIN,
-                "source_entity": "sensor.spain_power_price_pvpc_current",
-                "prices": self._build_optimizer_prices(data.today_prices),
             }
 
         if self.entity_description.key.startswith("pvpc_"):

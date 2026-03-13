@@ -23,6 +23,7 @@ class SpainPowerPriceSensorDescription:
     key: str
     name: str
     icon: str
+    device_class: str | None = None
     unit_of_measurement: str | None = None
 
 

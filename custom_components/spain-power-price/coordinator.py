@@ -9,6 +9,7 @@ from datetime import timedelta
 from typing import Any
 
 import async_timeout
+from aiohttp import ClientError
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -64,19 +65,43 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
                     return await response.json()
         except asyncio.TimeoutError as exc:
             raise UpdateFailed("Timeout while querying ESIOS API") from exc
+        except ClientError as exc:
+            raise UpdateFailed(f"Network error while querying ESIOS API: {exc}") from exc
+        except ValueError as exc:
+            raise UpdateFailed("Invalid JSON returned by ESIOS API") from exc
+
+    @staticmethod
+    def _empty_data() -> SpainPowerPriceData:
+        """Return an empty data object for safe startup fallback."""
+        return SpainPowerPriceData(
+            today_prices=[],
+            future_prices=[],
+            current_price=None,
+            current_relative_price=None,
+            future_day=None,
+            future_relative_price=None,
+        )
 
     def _process_pvpc(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         """Normalize ESIOS payload and compute relative price buckets."""
         items: list[dict[str, Any]] = []
+        rows = payload.get("PVPC", [])
+        if not isinstance(rows, list):
+            return items
 
         min_pcb_value: float | None = None
         max_pcb_value: float | None = None
         min_cym_value: float | None = None
         max_cym_value: float | None = None
 
-        for row in payload.get("PVPC", []):
-            pcb_price = utils.convert_mwh_string_to_eur(row.get(constants.FIELD_PCB, "0"))
-            cym_price = utils.convert_mwh_string_to_eur(row.get(constants.FIELD_CYM, "0"))
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            try:
+                pcb_price = utils.convert_mwh_string_to_eur(row.get(constants.FIELD_PCB, "0"))
+                cym_price = utils.convert_mwh_string_to_eur(row.get(constants.FIELD_CYM, "0"))
+            except (TypeError, ValueError):
+                continue
 
             min_pcb_value = pcb_price if min_pcb_value is None else min(min_pcb_value, pcb_price)
             max_pcb_value = pcb_price if max_pcb_value is None else max(max_pcb_value, pcb_price)
@@ -129,10 +154,31 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
         today_endpoint = constants.ENDPOINT_TODAY_PRICE.format(utils.get_current_date_string())
         future_endpoint = constants.ENDPOINT_FUTURE_PRICE
 
-        today_payload, future_payload = await asyncio.gather(
+        today_result, future_result = await asyncio.gather(
             self._async_fetch_json(today_endpoint),
             self._async_fetch_json(future_endpoint),
+            return_exceptions=True,
         )
+
+        today_payload: dict[str, Any] = {}
+        future_payload: dict[str, Any] = {}
+
+        if isinstance(today_result, Exception):
+            _LOGGER.warning("Could not refresh today PVPC data: %s", today_result)
+        else:
+            today_payload = today_result
+
+        if isinstance(future_result, Exception):
+            _LOGGER.warning("Could not refresh future PVPC data: %s", future_result)
+        else:
+            future_payload = future_result
+
+        if not today_payload and not future_payload:
+            if self.data is not None:
+                _LOGGER.warning("Using last known data due to endpoint errors")
+                return self.data
+            _LOGGER.warning("Using empty data due to initial endpoint errors")
+            return self._empty_data()
 
         today_prices = self._process_pvpc(today_payload)
         future_prices = self._process_pvpc(future_payload)

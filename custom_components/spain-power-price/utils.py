@@ -1,5 +1,9 @@
 """Utility helpers for the Spain Power Price integration."""
 
+from __future__ import annotations
+
+from typing import Any
+
 from homeassistant.util import dt as dt_util
 
 from . import constants
@@ -24,8 +28,16 @@ def get_esios_headers(personal_token: str) -> dict[str, str]:
     }
 
 
-def convert_mwh_string_to_eur(value: str, decimals: int = 5) -> float:
-    """Convert ESIOS numeric string (e.g. '123,45') to EUR value."""
-    parsed_value = float(value.replace(",", "."))
+def convert_mwh_string_to_eur(value: Any, decimals: int = 5) -> float:
+    """Convert ESIOS numeric value to EUR value."""
+    if value is None:
+        return 0.0
+
+    if isinstance(value, str):
+        normalized_value = value.replace(",", ".")
+    else:
+        normalized_value = str(value)
+
+    parsed_value = float(normalized_value)
     eur_value = parsed_value / 1_000
     return round(eur_value, decimals)

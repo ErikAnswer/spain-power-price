@@ -1,6 +1,6 @@
 """Constants for the Spain Power Price integration."""
 
-DOMAIN = "spain-power-price"
+DOMAIN = "spain_power_price"
 PLATFORMS = ["sensor"]
 
 CONF_PERSONAL_TOKEN = "token_personal"

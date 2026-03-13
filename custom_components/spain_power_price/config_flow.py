@@ -81,15 +81,11 @@ class SpainPowerPriceConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     def async_get_options_flow(config_entry: config_entries.ConfigEntry):
         """Return options flow for this handler."""
-        return SpainPowerPriceOptionsFlow(config_entry)
+        return SpainPowerPriceOptionsFlow()
 
 
 class SpainPowerPriceOptionsFlow(config_entries.OptionsFlow):
     """Handle options flow for Spain Power Price."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None):
         """Manage the options step."""

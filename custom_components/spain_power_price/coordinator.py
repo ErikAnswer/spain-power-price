@@ -245,6 +245,46 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             ),
         }
 
+    @staticmethod
+    def _indicator_to_legacy_pvpc(
+        payload: dict[str, Any], target_date
+    ) -> dict[str, Any]:
+        """Adapt an ESIOS indicator 1001 payload to the legacy PVPC shape.
+
+        ESIOS retired the archives/70 JSON download (it now returns a ZIP
+        with a non-JSON mimetype), so PVPC hourly prices are read from
+        indicator 1001 and normalized into the {"PVPC": [{Dia, Hora, PCB,
+        CYM}, ...]} structure that _process_pvpc already understands.
+        """
+        rows: list[dict[str, Any]] = []
+        indicator = payload.get("indicator", {}) if isinstance(payload, dict) else {}
+        values = indicator.get("values", []) if isinstance(indicator, dict) else []
+        if not isinstance(values, list):
+            return {"PVPC": rows}
+
+        for value in values:
+            if not isinstance(value, dict):
+                continue
+            if value.get("geo_id") != constants.GEO_ID_PENINSULA:
+                continue
+            local_dt = SpainPowerPriceCoordinator._parse_local_datetime(
+                value.get("datetime")
+            )
+            if local_dt is None or local_dt.date() != target_date:
+                continue
+            price = value.get("value")
+            if price is None:
+                continue
+            rows.append(
+                {
+                    constants.FIELD_DAY: local_dt.strftime("%d/%m/%Y"),
+                    constants.FIELD_HOUR: f"{local_dt.hour:02d}-{(local_dt.hour + 1) % 24:02d}",
+                    constants.FIELD_PCB: price,
+                    constants.FIELD_CYM: price,
+                }
+            )
+        return {"PVPC": rows}
+
     def _process_pvpc(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
         """Normalize ESIOS payload and compute relative price buckets."""
         items: list[dict[str, Any]] = []
@@ -314,8 +354,16 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
 
     async def _async_update_data(self) -> SpainPowerPriceData:
         """Fetch and return consolidated entity data."""
-        today_endpoint = constants.ENDPOINT_TODAY_PRICE.format(utils.get_current_date_string())
-        future_endpoint = constants.ENDPOINT_FUTURE_PRICE
+        today_date = dt_util.now().date()
+        tomorrow_date = today_date + timedelta(days=1)
+        today_endpoint = constants.ENDPOINT_PVPC_RANGE.format(
+            start_date=f"{today_date.isoformat()}T00:00",
+            end_date=f"{today_date.isoformat()}T23:59",
+        )
+        future_endpoint = constants.ENDPOINT_PVPC_RANGE.format(
+            start_date=f"{tomorrow_date.isoformat()}T00:00",
+            end_date=f"{tomorrow_date.isoformat()}T23:59",
+        )
 
         start_date = dt_util.now().date() - timedelta(days=1)
         end_date = dt_util.now().date() + timedelta(days=1)
@@ -372,8 +420,12 @@ class SpainPowerPriceCoordinator(DataUpdateCoordinator[SpainPowerPriceData]):
             _LOGGER.warning("Using empty data due to initial endpoint errors")
             return self._empty_data()
 
-        today_prices = self._process_pvpc(today_payload)
-        future_prices = self._process_pvpc(future_payload)
+        today_prices = self._process_pvpc(
+            self._indicator_to_legacy_pvpc(today_payload, today_date)
+        )
+        future_prices = self._process_pvpc(
+            self._indicator_to_legacy_pvpc(future_payload, tomorrow_date)
+        )
 
         current_index = (
             min(utils.get_current_hour(), len(today_prices) - 1) if today_prices else None

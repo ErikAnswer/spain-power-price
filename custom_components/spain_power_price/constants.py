@@ -29,6 +29,12 @@ INDICATOR_DEMAND_PROGRAMMED = 545
 INDICATOR_WIND_FORECAST = 541
 INDICATOR_SOLAR_FORECAST = 542
 INDICATOR_WIND_REAL = 551
+INDICATOR_PVPC = 1001
+GEO_ID_PENINSULA = 8741
+ENDPOINT_PVPC_RANGE = (
+    "https://api.esios.ree.es/indicators/1001?start_date={start_date}"
+    "&end_date={end_date}&time_trunc=hour"
+)
 
 FIELD_DAY = "Dia"
 FIELD_HOUR = "Hora"

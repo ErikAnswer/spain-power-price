@@ -20,7 +20,7 @@ ENDPOINT_TODAY_PRICE = (
 )
 ENDPOINT_INDICATOR_RANGE = (
     "https://api.esios.ree.es/indicators/{indicator_id}?start_date={start_date}"
-    "&end_date={end_date}&time_trunc=hour"
+    "&end_date={end_date}&time_trunc=hour&time_agg=average"
 )
 
 INDICATOR_SPOT_PRICE_DAILY = 600
@@ -33,7 +33,7 @@ INDICATOR_PVPC = 1001
 GEO_ID_PENINSULA = 8741
 ENDPOINT_PVPC_RANGE = (
     "https://api.esios.ree.es/indicators/1001?start_date={start_date}"
-    "&end_date={end_date}&time_trunc=hour"
+    "&end_date={end_date}&time_trunc=hour&time_agg=average"
 )
 
 FIELD_DAY = "Dia"
